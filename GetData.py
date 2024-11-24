@@ -1,6 +1,16 @@
 import requests
 import csv
+from io import StringIO
+from datetime import datetime
+import tkinter as tk
 
+#Variable
+date1=[]
+energy1=[]
+date2=[]
+energy2=[]
+
+###################################################################################
 def fetch_csv_data(meter_ip, last_entries):
     """Récupère un fichier CSV avec les dernières entrées."""
     url = f"http://{meter_ip}/data/?last={last_entries}"
@@ -18,21 +28,47 @@ def fetch_csv_data(meter_ip, last_entries):
         print(f"Erreur lors de la connexion au compteur : {e}")
     return None
 
-def parse_csv_data(csv_content):
+def parse_csv_data(csv_content,date,energy):
     """Analyse et affiche les données du fichier CSV."""
-    csv_reader = csv.reader(csv_content.splitlines(), delimiter=";")
+    # Convertit le contenu brut en un objet type fichier
+    csv_reader = csv.reader(StringIO(csv_content), delimiter=";")
+    
+    # Lire l'en-tête
+    header = next(csv_reader)
+    #print("Header :", header)
+
+    # Lire et afficher les lignes suivantes
     for row in csv_reader:
-        print(row)  # Affiche chaque ligne du CSV
-
+        date.append(row[0])
+        energy.append(row[4])
+    date.reverse()
+    energy.reverse()
+        
+def collectData(meter_ip,numberInput,date,deltaEnergy):
+    energy=[]
+    csv_file = fetch_csv_data(meter_ip, last_entries)
+    parse_csv_data(csv_file,date,energy)
+    for i in range(0,len(energy)-1):
+        deltaEnergy.append(int(energy[i+1])-int(energy[i]))
+       
+######################################################################################   
 # Configuration
-meter_ip = "10.151.50.9"  # Remplacez par l'IP du compteur
-last_entries = 30  # Nombre d'entrées à récupérer
+mpa_ip = "10.151.50.9"
+grid_ip = "10.151.50.6"
+last_entries = 10  # Nombre d'entrées à récupérer
 
-# Étape 1 : Récupérer le fichier CSV
-csv_data = fetch_csv_data(meter_ip, last_entries)
+#Récupérer les données
+collectData(mpa_ip,last_entries,date1,energy1)
+collectData(grid_ip,last_entries,date2,energy2)
 
-# Étape 2 : Lire et afficher les données si le CSV est valide
-if csv_data:
-    parse_csv_data(csv_data)
-else:
-    print("Aucune donnée CSV récupérée.")
+
+#Traitement
+print(datetime.now())
+print(date1)
+print(energy1)
+print(date2)
+print(energy2)
+
+
+
+
