@@ -3,8 +3,12 @@ import csv
 from io import StringIO
 from datetime import datetime
 import tkinter as tk
+from tkinter import *
+from tkcalendar import Calendar
 
 #Variable
+startDate='1'
+endDate="1"
 date1=[]
 energy1=[]
 date2=[]
@@ -51,15 +55,49 @@ def collectData(meter_ip,numberInput,date,deltaEnergy):
     for i in range(0,len(energy)-1):
         deltaEnergy.append(int(energy[i+1])-int(energy[i]))
        
-######################################################################################   
+#####################################################################################
+#GUI
+window = Tk()
+title = tk.Label(text="Acquisition des compteurs")
+title.pack()
+
+
+window.geometry("400x400")
+ 
+# Add Calendar
+cal = Calendar(window, selectmode = 'day',
+               year = 2020, month = 5,
+               day = 22)
+ 
+cal.pack(pady = 20)
+
+def setGrad_date():
+    if startDate=='1' and endDate=="1":
+        startDate = cal.get_date()
+    elif endDate=="1":
+        endDate = cal.get_date()
+        
+def run():
+    print(startDate)
+    print(endDate)
+ 
+Button(window, text = "Set Date",
+       command = setGrad_date).pack(pady = 20)
+Button(window, text = "Run",
+       command = run).pack(pady = 20)
+  
+ 
+ 
+ 
+ 
 # Configuration
 mpa_ip = "10.151.50.9"
 grid_ip = "10.151.50.6"
 last_entries = 10  # Nombre d'entrées à récupérer
 
 #Récupérer les données
-collectData(mpa_ip,last_entries,date1,energy1)
-collectData(grid_ip,last_entries,date2,energy2)
+#collectData(mpa_ip,last_entries,date1,energy1)
+#collectData(grid_ip,last_entries,date2,energy2)
 
 
 #Traitement
