@@ -1,23 +1,27 @@
 import requests
 import csv
 from io import StringIO
-from datetime import datetime
+from datetime import datetime, timedelta
+import pytz
 import tkinter as tk
 from tkinter import *
 from tkcalendar import Calendar
 
-#Variable
-startDate='1'
-endDate="1"
-date1=[]
-energy1=[]
-date2=[]
-energy2=[]
+# Variables globales
+startDate = None
+endDate = None
+date1 = []
+energy1 = []
+date2 = []
+energy2 = []
+# Configuration
+mpa_ip = "10.151.50.9"
+grid_ip = "10.151.50.6"
 
 ###################################################################################
-def fetch_csv_data(meter_ip, last_entries):
-    """Récupère un fichier CSV avec les dernières entrées."""
-    url = f"http://{meter_ip}/data/?last={last_entries}"
+def fetch_csv_data_with_range(meter_ip, from_index, to_index):
+    """Récupère un fichier CSV avec une plage d'indices."""
+    url = f"http://{meter_ip}/data/?from={from_index}&to={to_index}"
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()  # Vérifie les erreurs HTTP
@@ -32,81 +36,184 @@ def fetch_csv_data(meter_ip, last_entries):
         print(f"Erreur lors de la connexion au compteur : {e}")
     return None
 
-def parse_csv_data(csv_content,date,energy):
+def parse_csv_data(csv_content, date, energy):
     """Analyse et affiche les données du fichier CSV."""
     # Convertit le contenu brut en un objet type fichier
     csv_reader = csv.reader(StringIO(csv_content), delimiter=";")
     
     # Lire l'en-tête
     header = next(csv_reader)
-    #print("Header :", header)
 
-    # Lire et afficher les lignes suivantes
+    # Lire et stocker les données dans les listes
     for row in csv_reader:
-        date.append(row[0])
-        energy.append(row[4])
+        date.append(row[0])  # Timestamp
+        energy.append(row[4])  # Active Energy
     date.reverse()
     energy.reverse()
-        
-def collectData(meter_ip,numberInput,date,deltaEnergy):
-    energy=[]
-    csv_file = fetch_csv_data(meter_ip, last_entries)
-    parse_csv_data(csv_file,date,energy)
-    for i in range(0,len(energy)-1):
-        deltaEnergy.append(int(energy[i+1])-int(energy[i]))
-       
+
+# Récupérer l'index actuel avec ?last=1
+def fetch_last_data(meter_ip):
+    """Récupère la dernière donnée pour obtenir l'index et le timestamp."""
+    url = f"http://{meter_ip}/data/?last=1"
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()  # Vérifie les erreurs HTTP
+
+        if "text/csv" in response.headers.get("Content-Type", ""):
+            # Lecture du CSV
+            csv_reader = csv.reader(StringIO(response.text), delimiter=";")
+            next(csv_reader)  # Skip header
+            
+            # Extraire les données de la dernière ligne
+            last_row = next(csv_reader)
+            timestamp = last_row[0]
+            current_index = int(last_row[1])
+            return timestamp, current_index
+        else:
+            print("La réponse ne contient pas un fichier CSV valide.")
+    except requests.exceptions.RequestException as e:
+        print(f"Erreur lors de la connexion au compteur : {e}")
+    return None, None
+
+# Calcul des indices à partir de la plage horaire UTC
+def calculate_from_to_indices(start_date, end_date, current_timestamp, current_index, local_tz='Europe/Paris'):
+    """
+    Calcule les index `from` et `to` basés sur une plage de dates commençant à 00:00 UTC le jour de début
+    et se terminant à 23:45 UTC le jour de fin.
+    """
+    # Convertir les dates de début et de fin en datetime avec fuseau horaire local
+    local_timezone = pytz.timezone(local_tz)
+
+    # Début de la journée de la date de début (00:00 UTC)
+    start_dt_local = local_timezone.localize(datetime.strptime(start_date, '%Y-%m-%d').replace(hour=0, minute=0), is_dst=None)
+    
+    # Fin de la journée de la date de fin (23:45 UTC)
+    end_dt_local = local_timezone.localize(datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=45), is_dst=None)
+
+    # Convertir en UTC
+    start_dt_utc = start_dt_local.astimezone(pytz.utc)
+    end_dt_utc = end_dt_local.astimezone(pytz.utc)
+
+    # Convertir le timestamp actuel en datetime UTC
+    current_dt_utc = datetime.strptime(current_timestamp, '%Y-%m-%dT%H:%M:%S%z')  # Inclure le fuseau horaire (Z pour UTC)
+
+    # Calculer la différence en intervalles de 15 minutes
+    intervals_since_start = (current_dt_utc - start_dt_utc).total_seconds() // (15 * 60)
+    intervals_since_end = (current_dt_utc - end_dt_utc).total_seconds() // (15 * 60)
+
+    # Calculer les indices
+    from_index = current_index - int(intervals_since_end)
+    to_index = current_index - int(intervals_since_start)
+
+    # Vérification des calculs
+    print(f"Start UTC: {start_dt_utc}, End UTC: {end_dt_utc}")
+    print(f"Intervals since start: {intervals_since_start}, Intervals since end: {intervals_since_end}")
+    print(f"Calculated indices - From: {from_index}, To: {to_index}")
+
+    return from_index, to_index
+
+# Fonction pour récupérer les données pour une plage d'indices donnée
+def fetch_csv_data_with_range(meter_ip, from_index, to_index):
+    """Récupère un fichier CSV avec une plage d'indices."""
+    url = f"http://{meter_ip}/data/?from={from_index}&to={to_index}"
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()  # Vérifie les erreurs HTTP
+
+        if "text/csv" in response.headers.get("Content-Type", ""):
+            return response.text  # Retourne le contenu brut du CSV
+        else:
+            print("La réponse ne contient pas de fichier CSV.")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"Erreur lors de la connexion au compteur : {e}")
+    return None
+
+# Lancer le traitement
+def run():
+    global startDate, endDate
+    if startDate and endDate:
+        print(f"Récupération des données entre {startDate} et {endDate}...")
+
+        # Étape 1 : Récupérer l'index actuel et le timestamp
+        current_timestamp, current_index = fetch_last_data(mpa_ip)
+        if current_timestamp and current_index:
+            print(f"Index actuel : {current_index}, Timestamp actuel : {current_timestamp}")
+
+            # Étape 2 : Calculer les indices `from` et `to` pour une plage horaire donnée
+            from_index, to_index = calculate_from_to_indices(startDate, endDate, current_timestamp, current_index)
+            print(f"Indices calculés : from={from_index}, to={to_index}")
+
+            # Étape 3 : Récupérer les données pour la plage d'indices
+            csv_data = fetch_csv_data_with_range(mpa_ip, from_index, to_index)
+            if csv_data:
+                parse_csv_data(csv_data, date1, energy1)
+                print("Données MPA :", date1, energy1)
+            else:
+                print("Erreur lors de la récupération des données.")
+        else:
+            print("Impossible de récupérer l'index actuel et le timestamp.")
+    else:
+        print("Veuillez définir les dates de début et de fin.")
+
 #####################################################################################
-#GUI
+# Interface graphique
 window = Tk()
+window.title("Acquisition des compteurs")
+window.geometry("400x400")
+
 title = tk.Label(text="Acquisition des compteurs")
 title.pack()
 
+# Ajout du calendrier
+cal = Calendar(window, selectmode='day', year=2024, month=11, day=30)
+cal.pack(pady=20)
 
-window.geometry("400x400")
- 
-# Add Calendar
-cal = Calendar(window, selectmode = 'day',
-               year = 2020, month = 5,
-               day = 22)
- 
-cal.pack(pady = 20)
-
+# Définir les dates de début et de fin
 def setGrad_date():
-    if startDate=='1' and endDate=="1":
-        startDate = cal.get_date()
-    elif endDate=="1":
-        endDate = cal.get_date()
-        
+    global startDate, endDate
+    if startDate is None:
+        # Convertir au format attendu
+        startDate = datetime.strptime(cal.get_date(), '%m/%d/%y').strftime('%Y-%m-%d')
+        print(f"Date de début définie : {startDate}")
+    else:
+        # Convertir au format attendu
+        endDate = datetime.strptime(cal.get_date(), '%m/%d/%y').strftime('%Y-%m-%d')
+        print(f"Date de fin définie : {endDate}")
+
+# Lancer la collecte de données
 def run():
-    print(startDate)
-    print(endDate)
- 
-Button(window, text = "Set Date",
-       command = setGrad_date).pack(pady = 20)
-Button(window, text = "Run",
-       command = run).pack(pady = 20)
-  
- 
- 
- 
- 
-# Configuration
-mpa_ip = "10.151.50.9"
-grid_ip = "10.151.50.6"
-last_entries = 10  # Nombre d'entrées à récupérer
+    global startDate, endDate
+    if startDate and endDate:
+        print(f"Récupération des données entre {startDate} et {endDate}...")
 
-#Récupérer les données
-#collectData(mpa_ip,last_entries,date1,energy1)
-#collectData(grid_ip,last_entries,date2,energy2)
+        # Étape 1 : Récupérer l'index actuel et le timestamp
+        current_timestamp, current_index = fetch_last_data(mpa_ip)
+        if current_timestamp and current_index:
+            print(f"Index actuel : {current_index}, Timestamp actuel : {current_timestamp}")
 
+            # Étape 2 : Calculer les indices `from` et `to` pour une plage horaire donnée
+            from_index, to_index = calculate_from_to_indices(startDate, endDate, current_timestamp, current_index)
+            print(f"Indices calculés : from={from_index}, to={to_index}")
 
-#Traitement
-print(datetime.now())
-print(date1)
-print(energy1)
-print(date2)
-print(energy2)
+            # Étape 3 : Récupérer les données pour la plage d'indices
+            csv_data = fetch_csv_data_with_range(mpa_ip, from_index, to_index)
+            if csv_data:
+                parse_csv_data(csv_data, date1, energy1)
+                print("Données MPA :", date1, energy1)
+            else:
+                print("Erreur lors de la récupération des données.")
+        else:
+            print("Impossible de récupérer l'index actuel et le timestamp.")
+    else:
+        print("Veuillez définir les dates de début et de fin.")
 
 
 
+# Boutons pour définir les dates et lancer le traitement
+Button(window, text="Set Date", command=setGrad_date).pack(pady=10)
+Button(window, text="Run", command=run).pack(pady=10)
 
+#####################################################################################
+# Lancement de l'interface graphique
+window.mainloop()
