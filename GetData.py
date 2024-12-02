@@ -76,41 +76,48 @@ def fetch_last_data(meter_ip):
     return None, None
 
 # Calcul des indices à partir de la plage horaire UTC
-def calculate_from_to_indices(start_date, end_date, current_timestamp, current_index, local_tz='Europe/Paris'):
+def calculate_from_to_indices(start_date, end_date, current_timestamp, current_index):
     """
-    Calcule les index `from` et `to` basés sur une plage de dates commençant à 00:00 UTC le jour de début
-    et se terminant à 23:45 UTC le jour de fin.
+    Calcule les indices `from` et `to` en fonction des dates exactes, en corrigeant l'ordre des indices
+    pour garantir que la plage horaire est correcte.
     """
-    # Convertir les dates de début et de fin en datetime avec fuseau horaire local
-    local_timezone = pytz.timezone(local_tz)
-
-    # Début de la journée de la date de début (00:00 UTC)
-    start_dt_local = local_timezone.localize(datetime.strptime(start_date, '%Y-%m-%d').replace(hour=0, minute=0), is_dst=None)
-    
-    # Fin de la journée de la date de fin (23:45 UTC)
-    end_dt_local = local_timezone.localize(datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=45), is_dst=None)
-
-    # Convertir en UTC
-    start_dt_utc = start_dt_local.astimezone(pytz.utc)
-    end_dt_utc = end_dt_local.astimezone(pytz.utc)
+    # Convertir les dates de début et de fin en datetime UTC
+    start_dt_utc = datetime.strptime(start_date, '%Y-%m-%d').replace(hour=0, minute=0, second=0, tzinfo=pytz.UTC)
+    end_dt_utc = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=45, second=0, tzinfo=pytz.UTC)
 
     # Convertir le timestamp actuel en datetime UTC
-    current_dt_utc = datetime.strptime(current_timestamp, '%Y-%m-%dT%H:%M:%S%z')  # Inclure le fuseau horaire (Z pour UTC)
+    current_dt_utc = datetime.strptime(current_timestamp, '%Y-%m-%dT%H:%M:%S%z')
 
-    # Calculer la différence en intervalles de 15 minutes
-    intervals_since_start = (current_dt_utc - start_dt_utc).total_seconds() // (15 * 60)
-    intervals_since_end = (current_dt_utc - end_dt_utc).total_seconds() // (15 * 60)
+    # Calculer les intervalles de 15 minutes
+    print("soustraction utc : ")
+    print(current_dt_utc - start_dt_utc)
+    print("en s : ")
+    print((current_dt_utc - start_dt_utc).total_seconds())
+    print("divison : ")
+    print(int((current_dt_utc - start_dt_utc).total_seconds() // (15 * 60)))
+    print("soustraction utc : ")
+    print(current_dt_utc - end_dt_utc)
+    print("en s : ")
+    print((current_dt_utc - end_dt_utc).total_seconds())
+    print("divison : ")
+    print(int((current_dt_utc - end_dt_utc).total_seconds() // (15 * 60)))
+    
+    intervals_since_start = int((current_dt_utc - start_dt_utc).total_seconds() // (15 * 60))
+    intervals_since_end = int((current_dt_utc - end_dt_utc).total_seconds() // (15 * 60))
 
     # Calculer les indices
-    from_index = current_index - int(intervals_since_end)
-    to_index = current_index - int(intervals_since_start)
+    from_index = current_index - intervals_since_start
+    to_index = current_index - intervals_since_end
 
-    # Vérification des calculs
+    # Vérifications et affichage pour débogage
     print(f"Start UTC: {start_dt_utc}, End UTC: {end_dt_utc}")
+    print(f"Current timestamp: {current_dt_utc}, Current index: {current_index}")
     print(f"Intervals since start: {intervals_since_start}, Intervals since end: {intervals_since_end}")
     print(f"Calculated indices - From: {from_index}, To: {to_index}")
 
     return from_index, to_index
+
+
 
 # Fonction pour récupérer les données pour une plage d'indices donnée
 def fetch_csv_data_with_range(meter_ip, from_index, to_index):
@@ -155,6 +162,7 @@ def run():
             print("Impossible de récupérer l'index actuel et le timestamp.")
     else:
         print("Veuillez définir les dates de début et de fin.")
+
 
 #####################################################################################
 # Interface graphique
