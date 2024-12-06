@@ -7,11 +7,11 @@ import csv
 
 # Configuration des compteurs
 compteurs = [
-    {"nom": "Compteur Grid", "ip": "10.151.50.6", "offset": 0, "last_index": None},
-    {"nom": "Compteur PV", "ip": "10.151.50.7", "offset": 0, "last_index": None},
-    {"nom": "Compteur Serge", "ip": "10.151.50.8", "offset": 0, "last_index": None},
-    {"nom": "Compteur MPA", "ip": "10.151.50.9", "offset": 19751, "last_index": None},
-    {"nom": "Compteur Commun", "ip": "10.151.50.10", "offset": -1, "last_index": None},
+    {"nom": "Compteur Grid", "ip": "10.151.50.6", "offset": 0, "last_index": None,"timestamp":[],"energy":[]},
+    {"nom": "Compteur PV", "ip": "10.151.50.7", "offset": 0, "last_index": None,"timestamp":[],"energy":[]},
+    {"nom": "Compteur Serge", "ip": "10.151.50.8", "offset": 0, "last_index": None,"timestamp":[],"energy":[]},
+    {"nom": "Compteur MPA", "ip": "10.151.50.9", "offset": 19751, "last_index": None,"timestamp":[],"energy":[]},
+    {"nom": "Compteur Commun", "ip": "10.151.50.10", "offset": -1, "last_index": None,"timestamp":[],"energy":[]},
 ]
 
 # Récupérer l'index actuel d'un compteur
@@ -71,16 +71,28 @@ def fetch_data_from_index():
             if "text/csv" in response.headers.get("Content-Type", ""):
                 csv_reader = csv.reader(StringIO(response.text), delimiter=";")
                 next(csv_reader)  # Skip header
-                rows = list(csv_reader)
+                rows = []
+                # Lire et stocker les données dans les listes
+                for row in csv_reader:
+                    print(row[4]);
+                    compteur["timestamp"].append(row[0])  # Timestamp
+                    compteur["energy"].append(row[4])  # Active Energy
+                    rows.append(row);                
                 if rows:
                     data_label[compteur["nom"]].config(text=f"Données récupérées : {len(rows)} entrées")
                 else:
                     data_label[compteur["nom"]].config(text="Données : Aucune")
+                    
+                    
             else:
                 data_label[compteur["nom"]].config(text="Données : Erreur")
         except Exception as e:
             print(f"Erreur lors de la récupération des données pour {compteur['nom']}: {e}")
             data_label[compteur["nom"]].config(text="Données : Erreur")
+            
+            
+            
+    print(compteurs[0]["timestamp"]);
 
 # Interface graphique
 window = tk.Tk()
