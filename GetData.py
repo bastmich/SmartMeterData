@@ -4,6 +4,7 @@ from tkinter import *
 from tkinter import ttk
 from io import StringIO
 import csv
+import pandas as pd
 
 # Configuration des compteurs
 compteurs = [
@@ -91,9 +92,65 @@ def fetch_data_from_index():
             data_label[compteur["nom"]].config(text="Données : Erreur")
             
             
+def toExcel():
+    gridIn=[]
+    gridOut=[]
+    pvRestant=[]
+    pv = compteurs[1]["energy"]
+    mpa = compteurs[3]["energy"]
+    sda = compteurs[2]["energy"]
+    commun = compteurs[4]["energy"]
+    
+    for element in compteurs[0]["energy"]:
+        if element >= 0:
+            gridIn.append(element);
+            gridOut.append(0);
+        else :
+            gridIn.append(0);
+            gridOut.append(-element);
             
-    print(compteurs[0]["timestamp"]);
+    for i, power in enumerate(compteurs[1]["energy"]):
+        pvRestant.append(power - gridOut[i])
+            
+    data = {
+        "Timestamp": compteurs[0]["timestamp"],
+        "Grid In": gridIn,
+        "Grid Out": gridOut,
+        "PV": pv,
+        "PV Restant": pv_restant,
+        "MPA": mpa,
+        "SDA": sda,
+        "Commun": commun,
+    }
 
+    df = pd.DataFrame(data)
+
+    # Ajout d'une ligne "Total" à la fin
+    totals = {
+        "Timestamp": "Total",
+        "Grid In": sum(grid_in),
+        "Grid Out": sum(grid_out),
+        "PV": sum(pv),
+        "PV Restant": sum(pv_restant),
+        "MPA": sum(mpa),
+        "SDA": sum(sda),
+        "Commun": sum(commun),
+    }
+
+    df = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
+
+    # Écriture dans un fichier Excel
+    df.to_excel("compteurs.xlsx", index=False)
+
+    print("Les données ont été écrites dans 'compteurs.xlsx'.")
+    
+    
+# Fonction main
+def run():
+    fetch_data_from_index();
+    print(compteurs[0]["timestamp"]);
+    toExcel()
+    
 # Interface graphique
 window = tk.Tk()
 window.title("Gestion des compteurs")
@@ -121,11 +178,11 @@ fetch_index_button.pack(pady=10)
 # Section pour entrer un index et récupérer les données
 entry_frame = tk.Frame(window)
 entry_frame.pack(pady=10)
-tk.Label(entry_frame, text="Entrer un index de base : ").pack(side=tk.LEFT)
+tk.Label(entry_frame, text="Entrer un index de début pour comteur Grid : ").pack(side=tk.LEFT)
 index_entry = tk.Entry(entry_frame)
 index_entry.pack(side=tk.LEFT)
 
-fetch_data_button = tk.Button(window, text="Récupérer les données", command=fetch_data_from_index)
+fetch_data_button = tk.Button(window, text="Récupérer les données", command=run)
 fetch_data_button.pack(pady=10)
 
 # Affichage des données
