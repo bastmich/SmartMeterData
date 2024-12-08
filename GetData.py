@@ -96,28 +96,37 @@ def toExcel():
     gridIn=[]
     gridOut=[]
     pvRestant=[]
-    pv = compteurs[1]["energy"]
-    mpa = compteurs[3]["energy"]
-    sda = compteurs[2]["energy"]
-    commun = compteurs[4]["energy"]
+    pv = []
+    mpa = []
+    sda = []
+    commun = []
+    
+    for a in compteurs[1]["energy"]:
+        pv.append(int(a))
+    for b in compteurs[3]["energy"]:
+        mpa.append(int(b))
+    for c in compteurs[2]["energy"]:
+        sda.append(int(c))
+    for d in compteurs[4]["energy"]:
+        commun.append(int(d))
     
     for element in compteurs[0]["energy"]:
-        if element >= 0:
-            gridIn.append(element);
+        if int(element) >= 0:
+            gridIn.append(int(element));
             gridOut.append(0);
         else :
             gridIn.append(0);
-            gridOut.append(-element);
+            gridOut.append(-1*int(element));
             
     for i, power in enumerate(compteurs[1]["energy"]):
-        pvRestant.append(power - gridOut[i])
+        pvRestant.append(int(power) - gridOut[i])
             
     data = {
         "Timestamp": compteurs[0]["timestamp"],
         "Grid In": gridIn,
         "Grid Out": gridOut,
         "PV": pv,
-        "PV Restant": pv_restant,
+        "PV Restant": pvRestant,
         "MPA": mpa,
         "SDA": sda,
         "Commun": commun,
@@ -128,10 +137,10 @@ def toExcel():
     # Ajout d'une ligne "Total" à la fin
     totals = {
         "Timestamp": "Total",
-        "Grid In": sum(grid_in),
-        "Grid Out": sum(grid_out),
+        "Grid In": sum(gridIn),
+        "Grid Out": sum(gridOut),
         "PV": sum(pv),
-        "PV Restant": sum(pv_restant),
+        "PV Restant": sum(pvRestant),
         "MPA": sum(mpa),
         "SDA": sum(sda),
         "Commun": sum(commun),
