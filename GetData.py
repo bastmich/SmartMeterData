@@ -8,7 +8,7 @@ import pandas as pd
 
 # Configuration des compteurs
 compteurs = [
-    {"nom": "Compteur Grid", "ip": "10.151.50.6", "offset": 0, "last_index": None,"timestamp":[],"energy":[]},
+    {"nom": "Compteur Grid", "ip": "10.151.50.6", "offset": 0, "last_index": None,"timestamp":[],"energy":[], "energy_export": []},
     {"nom": "Compteur PV", "ip": "10.151.50.7", "offset": 0, "last_index": None,"timestamp":[],"energy":[]},
     {"nom": "Compteur Serge", "ip": "10.151.50.8", "offset": 0, "last_index": None,"timestamp":[],"energy":[]},
     {"nom": "Compteur MPA", "ip": "10.151.50.9", "offset": 19751, "last_index": None,"timestamp":[],"energy":[]},
@@ -78,6 +78,10 @@ def fetch_data_from_index():
                     print(row[4]);
                     compteur["timestamp"].append(row[0])  # Timestamp
                     compteur["energy"].append(row[4])  # Active Energy
+                    # Gestion de energy_export uniquement pour Compteur Grid
+                    if compteur["nom"] == "Compteur Grid":
+                        energy = int(row[6])
+                        compteur["energy_export"].append(energy)
                     rows.append(row);                
                 if rows:
                     data_label[compteur["nom"]].config(text=f"Données récupérées : {len(rows)} entrées")
@@ -93,14 +97,18 @@ def fetch_data_from_index():
             
             
 def toExcel():
+    #Données
     gridIn=[]
     gridOut=[]
-    pvRestant=[]
     pv = []
     mpa = []
     sda = []
     commun = []
     
+
+    
+    
+    #Passage des données dans les list
     for a in compteurs[1]["energy"]:
         pv.append(int(a))
     for b in compteurs[3]["energy"]:
@@ -109,27 +117,47 @@ def toExcel():
         sda.append(int(c))
     for d in compteurs[4]["energy"]:
         commun.append(int(d))
+    for e in compteurs[0]["energy"]:
+        gridIn.append(int(e))
+    for f in compteurs[0]["energy_export"]:
+        gridOut.append(f)
+        
+    #Colonne calculée
+    deltaGridIn = [0] * len(gridIn)
+    deltaGridOut = [0] * len(gridOut)
+    deltaPV = [0] * len(pv)
+    deltaMPA = [0] * len(mpa)
+    deltaSDA = [0] * len(sda)
+    deltaCommun = [0] * len(commun)
+    pvRestant = [0] * len(pv)
     
-    for element in compteurs[0]["energy"]:
-        if int(element) >= 0:
-            gridIn.append(int(element));
-            gridOut.append(0);
-        else :
-            gridIn.append(0);
-            gridOut.append(-1*int(element));
-            
-    for i, power in enumerate(compteurs[1]["energy"]):
-        pvRestant.append(int(power) - gridOut[i])
-            
+    #Calcul
+    for i in range(1,len(gridIn),1):
+        deltaGridIn[i] = gridIn[i]-gridIn[i-1]
+        deltaGridOut[i] = gridOut[i]-gridOut[i-1]
+        deltaPV[i]= pv[i]-pv[i-1]
+        deltaMPA[i] = mpa[i]-mpa[i-1]
+        deltaSDA[i] = sda[i]-sda[i-1]
+        deltaCommun[i] = commun[i]-commun[i-1]
+        
+        pvRestant[i] =deltaPV[i]-deltaGridOut[i]
+                
+    #Création du fichier excel         
     data = {
         "Timestamp": compteurs[0]["timestamp"],
         "Grid In": gridIn,
+        "Delta Grid In": deltaGridIn,
         "Grid Out": gridOut,
+        "Delta Grid Out": deltaGridOut,
         "PV": pv,
+        "Delta PV": deltaPV,
         "PV Restant": pvRestant,
         "MPA": mpa,
+        "Delta MPA": deltaMPA,
         "SDA": sda,
+        "Delta SDA": deltaSDA,
         "Commun": commun,
+        "Delta Commun": deltaCommun,
     }
 
     df = pd.DataFrame(data)
@@ -137,13 +165,19 @@ def toExcel():
     # Ajout d'une ligne "Total" à la fin
     totals = {
         "Timestamp": "Total",
-        "Grid In": sum(gridIn),
-        "Grid Out": sum(gridOut),
-        "PV": sum(pv),
+        "Grid In": "",
+        "Delta Grid In": sum(deltaGridIn),
+        "Grid Out": "",
+        "Delta Grid Out": sum(deltaGridOut),
+        "PV": "",
+        "Delta PV": sum(deltaPV),
         "PV Restant": sum(pvRestant),
-        "MPA": sum(mpa),
-        "SDA": sum(sda),
-        "Commun": sum(commun),
+        "MPA": "",
+        "Delta MPA": sum(deltaMPA),
+        "SDA": "",
+        "Delta SDA": sum(deltaSDA),
+        "Commun": "",
+        "Delta Commun": sum(deltaCommun),
     }
 
     df = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
