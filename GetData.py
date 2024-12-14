@@ -2,6 +2,7 @@ import requests
 import tkinter as tk
 from tkinter import *
 from tkinter import ttk
+from tkinter import filedialog
 from io import StringIO
 import csv
 import pandas as pd
@@ -131,6 +132,9 @@ def toExcel():
     deltaCommun = [0] * len(commun)
     pvRestant = [0] * len(pv)
     
+    consoMPAFinal = [0] * len(gridIn)
+    consoSDAFinal = [0] * len(gridIn)
+    
     #Calcul
     for i in range(1,len(gridIn),1):
         deltaGridIn[i] = gridIn[i]-gridIn[i-1]
@@ -140,7 +144,15 @@ def toExcel():
         deltaSDA[i] = sda[i]-sda[i-1]
         deltaCommun[i] = commun[i]-commun[i-1]
         
+        #Calcul PV Restant
         pvRestant[i] =deltaPV[i]-deltaGridOut[i]
+        
+        #Calcul pourcentage de conso total pour chacun
+        consoOutTotalTh = deltaMPA[i]+deltaSDA[i]+deltaCommun[i]
+        consoInTotal = deltaPV[i]+deltaGridIn[i]
+        consoMPAFinal[i] = (deltaMPA[i]/consoOutTotalTh)*consoInTotal+0.5*(deltaCommun[i]/consoOutTotalTh)*consoInTotal
+        consoSDAFinal[i] = (deltaSDA[i]/consoOutTotalTh)*consoInTotal+0.5*(deltaCommun[i]/consoOutTotalTh)*consoInTotal
+        
                 
     #Création du fichier excel         
     data = {
@@ -158,6 +170,11 @@ def toExcel():
         "Delta SDA": deltaSDA,
         "Commun": commun,
         "Delta Commun": deltaCommun,
+        "" : None,
+        "Conso Total MPA" : consoMPAFinal,
+        "Conso Total SDA" : consoSDAFinal,
+        
+        
     }
 
     df = pd.DataFrame(data)
@@ -178,14 +195,26 @@ def toExcel():
         "Delta SDA": sum(deltaSDA),
         "Commun": "",
         "Delta Commun": sum(deltaCommun),
+        "" :"",
+        "Conso Total MPA" : sum(consoMPAFinal),
+        "Conso Total SDA" : sum(consoSDAFinal),
     }
 
     df = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
 
-    # Écriture dans un fichier Excel
-    df.to_excel("compteurs.xlsx", index=False)
+    # Boîte de dialogue pour choisir l'emplacement du fichier
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".xlsx",  # Extension par défaut
+        filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],  # Types de fichiers autorisés
+        title="Enregistrer sous"  # Titre de la fenêtre
+    )
 
-    print("Les données ont été écrites dans 'compteurs.xlsx'.")
+    # Vérifiez si un chemin a été sélectionné
+    if file_path:
+        df.to_excel(file_path, index=False)  # Enregistrement du fichier Excel
+        print(f"Les données ont été écrites dans '{file_path}'.")
+    else:
+        print("Enregistrement annulé par l'utilisateur.")
     
     
 # Fonction main
@@ -197,7 +226,7 @@ def run():
 # Interface graphique
 window = tk.Tk()
 window.title("Gestion des compteurs")
-window.geometry("600x500")
+window.geometry("600x800")
 
 # Titre
 title_label = tk.Label(window, text="Gestion des Compteurs", font=("Helvetica", 16))
@@ -221,7 +250,7 @@ fetch_index_button.pack(pady=10)
 # Section pour entrer un index et récupérer les données
 entry_frame = tk.Frame(window)
 entry_frame.pack(pady=10)
-tk.Label(entry_frame, text="Entrer un index de début pour comteur Grid : ").pack(side=tk.LEFT)
+tk.Label(entry_frame, text="Entrer un index de début pour compteur Grid : ").pack(side=tk.LEFT)
 index_entry = tk.Entry(entry_frame)
 index_entry.pack(side=tk.LEFT)
 
