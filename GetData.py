@@ -100,35 +100,47 @@ def fetch_data_from_index():
 def toExcel():
     #Données
     gridIn=[]
-    gridOut=[]
-    pv = []
-    mpa = []
-    sda = []
-    commun = []
+    
         
     
-    #Passage des données dans les list
-    for a in compteurs[1]["energy"]:
-        pv.append(int(a))
-    for b in compteurs[3]["energy"]:
-        mpa.append(int(b))
-    for c in compteurs[2]["energy"]:
-        sda.append(int(c))
-    for d in compteurs[4]["energy"]:
-        commun.append(int(d))
+    #Passage des données dans les listes
+    
     for e in compteurs[0]["energy"]:
         gridIn.append(int(e))
-    for f in compteurs[0]["energy_export"]:
-        gridOut.append(f)
         
+    gridOut=[0] * len(gridIn)
+    pv = [0] * len(gridIn)
+    mpa = [0] * len(gridIn)
+    sda = [0] * len(gridIn)
+    commun = [0] * len(gridIn)  
+        
+    for i,a in enumerate(compteurs[1]["energy"]):
+        pv[i] = (int(a))           
+    for j,b in enumerate (compteurs[3]["energy"]):
+        mpa[j]=(int(b))
+    for k,c in enumerate (compteurs[2]["energy"]):
+        sda[k]=(int(c))
+    for l,d in enumerate (compteurs[4]["energy"]):
+        commun[l]=(int(d))
+    for m,f in enumerate(compteurs[0]["energy_export"]):
+        gridOut[m]=(int(f))
+        
+    print(len(gridIn))
+    print(len(gridOut))
+    print(len(pv))
+    print(len(mpa))
+    print(len(sda))
+    print(len(commun))
+    
+          
     #Colonne calculée
     deltaGridIn = [0] * len(gridIn)
-    deltaGridOut = [0] * len(gridOut)
-    deltaPV = [0] * len(pv)
-    deltaMPA = [0] * len(mpa)
-    deltaSDA = [0] * len(sda)
-    deltaCommun = [0] * len(commun)
-    pvRestant = [0] * len(pv)
+    deltaGridOut = [0] * len(gridIn)
+    deltaPV = [0] * len(gridIn)
+    deltaMPA = [0] * len(gridIn)
+    deltaSDA = [0] * len(gridIn)
+    deltaCommun = [0] * len(gridIn)
+    pvRestant = [0] * len(gridIn)
     
     consoMPAFinal = [0] * len(gridIn)
     consoSDAFinal = [0] * len(gridIn)
