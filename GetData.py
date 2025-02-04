@@ -9,7 +9,7 @@ import pandas as pd
 
 # Configuration des compteurs
 compteurs = [
-    {"nom": "Compteur Grid", "ip": "10.151.50.6", "offset": 0, "last_index": None,"timestamp":[],"energy":[], "energy_export": []},
+    {"nom": "Compteur Grid", "ip": "10.151.50.6", "offset": 0, "last_index": None,"timestamp":[],"energy":[], "energy_export": [],"index":[]},
     {"nom": "Compteur PV", "ip": "10.151.50.7", "offset": 0, "last_index": None,"timestamp":[],"energy":[]},
     {"nom": "Compteur Serge", "ip": "10.151.50.8", "offset": 0, "last_index": None,"timestamp":[],"energy":[]},
     {"nom": "Compteur MPA", "ip": "10.151.50.9", "offset": 19751, "last_index": None,"timestamp":[],"energy":[]},
@@ -21,7 +21,7 @@ def fetch_last_index(ip):
     """Envoie une requête pour récupérer le dernier index du compteur."""
     url = f"http://{ip}/data/?last=1"
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=20)
         response.raise_for_status()
         if "text/csv" in response.headers.get("Content-Type", ""):
             csv_reader = csv.reader(StringIO(response.text), delimiter=";")
@@ -82,7 +82,9 @@ def fetch_data_from_index():
                     # Gestion de energy_export uniquement pour Compteur Grid
                     if compteur["nom"] == "Compteur Grid":
                         energy = int(row[6])
+                        index = row[1]
                         compteur["energy_export"].append(energy)
+                        compteur["index"].append(index)
                     rows.append(row);                
                 if rows:
                     data_label[compteur["nom"]].config(text=f"Données récupérées : {len(rows)} entrées")
@@ -100,13 +102,15 @@ def fetch_data_from_index():
 def toExcel():
     #Données
     gridIn=[]
-    
+    index=[]
         
     
     #Passage des données dans les listes
     
     for e in compteurs[0]["energy"]:
         gridIn.append(int(e))
+    for  g in compteurs[0]["index"]:
+        index.append(int(g))
         
     gridOut=[0] * len(gridIn)
     pv = [0] * len(gridIn)
@@ -115,7 +119,8 @@ def toExcel():
     commun = [0] * len(gridIn)  
         
     for i,a in enumerate(compteurs[1]["energy"]):
-        pv[i] = (int(a))           
+        pv[i] = (int(a))
+        print(i)
     for j,b in enumerate (compteurs[3]["energy"]):
         mpa[j]=(int(b))
     for k,c in enumerate (compteurs[2]["energy"]):
@@ -217,6 +222,7 @@ def toExcel():
     #Création du fichier excel         
     data = {
         "Timestamp": compteurs[0]["timestamp"],
+        "Index Grid" : index,
         "Grid In": gridIn,
         "Delta Grid In": deltaGridIn,
         "Grid Out": gridOut,
